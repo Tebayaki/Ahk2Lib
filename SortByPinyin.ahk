@@ -1,4 +1,4 @@
-﻿; MsgBox SortByPinyin("滴答`n必须`na`n耳机`nb`nc`n感觉`nd`ne`n才能`nf`ng`n非常`n啊不", "`n", "`n", 1)
+﻿; MsgBox SortByPinyin("滴答`n必须`na`n耳机`nb`nc`n感觉`nd`ne`n才能`nf`ng`n非常`n啊不", "`n", "`n", 0)
 
 SortByPinyin(str, deliIn := "`n", deliOut := "`n", reverse := 0) {
 	words := StrSplit(str, deliIn)
