@@ -1,16 +1,13 @@
-﻿RunAsSystem()
-MsgBox A_UserName " " A_IsAdmin
-StealToken(FindProcess("explorer.exe"), "D:\AutoHotkey2\AutoHotkey64.exe", "D:\Code\AutoHotkey2\test\2.ah2") ; 以普通用户身份打开cmd
 /********************************************************************************
-* @brief 获取指定进程的令牌，可借此以System权限和其他用户身份启动进程，使用时需要管理员权限
-* @param targetPID 进程标识，将复制其令牌
-* @param exePath 可执行程序路径, 使用获取的令牌启动的可执行程序
-* @param cmd optional 启动命令
-* @return 成功返回新进程id
+* @brief Duplicate a process's token and create a new process with this duplicte token. Only work with adminstrator privilege.
+* @param targetPID The identifier of target process.
+* @param exePath The path of an executable file which you want to start
+* @param cmd optional Command
+* @return The identifier of new process
 * @example
 RunAsAdmin()
-StealToken(FindProcess("winlogon.exe"), "cmd.exe", "/k whoami") ; 以system身份打开cmd
-StealToken(FindProcess("explorer.exe"), "cmd.exe", "/k whoami") ; 以普通用户身份打开cmd
+StealToken(FindProcess("winlogon.exe"), "cmd.exe", "/k whoami") ; run cmd with system account
+StealToken(FindProcess("explorer.exe"), "cmd.exe", "/k whoami") ; run cmd with normal user
 ********************************************************************************/
 StealToken(targetPID, exePath, cmd := "") {
 	; Enable SeDebugPrivilege
@@ -70,8 +67,8 @@ StealToken(targetPID, exePath, cmd := "") {
 	return NumGet(pProcessInfo, 16, "uint")
 }
 /********************************************************************************
-* @brief 放在脚本开头，如果不是system身份，则以system身份重启
-* @example RunAsSystem(), MsgBox("当前身份：" A_UserName)
+* @brief Run script with system account. Put this function at the beginning of scripts.
+* @example RunAsSystem(), MsgBox("Current username：" A_UserName)
 ********************************************************************************/
 RunAsSystem(){
 	try{
@@ -91,9 +88,9 @@ RunAsSystem(){
 	ExitApp
 }
 /********************************************************************************
-* @brief 查找指定文件的创建的进程
-* @param exeName 可执行文件名，不包含路径
-* @return 找到符合条件的第一个进程反回其进程id，否则返回0
+* @brief Find process from an exe file name
+* @param exeName Executable file without path
+* @return Identifier of the first match, 0 if not found.
 * @example MsgBox FindProcess("winlogon.exe")
 ********************************************************************************/
 FindProcess(exeName){
