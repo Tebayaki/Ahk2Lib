@@ -12,9 +12,9 @@ StealToken(FindProcess("explorer.exe"), "cmd.exe", "/k whoami") ; run cmd with n
 StealToken(targetPID, exePath, cmd := "") {
 	; Enable SeDebugPrivilege
 	if !DllCall("OpenProcessToken", "ptr", DllCall("GetCurrentProcess", "ptr"), "uint", 0x0020, "ptr*", &hTokenCurrentProcess := 0)
-		throw Error(DllCall("GetLastError"))
+		throw Error(A_LastError)
 	if !DllCall("Advapi32\LookupPrivilegeValue", "ptr", 0, "ptr", StrPtr("SeDebugPrivilege"), "ptr*", &pLuid := 0){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hTokenCurrentProcess)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hTokenCurrentProcess)
 		throw Error(err)
 	}
 	pTokenPriv := Buffer(16) ; sizeof(TOKEN_PRIVILEGES) = 16
@@ -22,7 +22,7 @@ StealToken(targetPID, exePath, cmd := "") {
 	NumPut("uint64", pLuid, pTokenPriv)
 	NumPut("uint", 0x2, pTokenPriv, 12) ; SE_PRIVILEGE_ENABLED (0x2)
 	if !DllCall("Advapi32\AdjustTokenPrivileges", "ptr", hTokenCurrentProcess, "int", 0, "ptr", pTokenPriv, "uint", 0, "ptr", 0, "ptr", 0){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hTokenCurrentProcess)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hTokenCurrentProcess)
 		throw Error(err)
 	}
 	DllCall("CloseHandle", "ptr", hTokenCurrentProcess)
@@ -31,15 +31,15 @@ StealToken(targetPID, exePath, cmd := "") {
 	; PROCESS_QUERY_INFORMATION (0x0400) PROCESS_QUERY_LIMITED_INFORMATION (0x1000)
 	if !hProcess := DllCall("OpenProcess", "uint", 0x0400, "int", 1, "uint", targetPID)
 		if !hProcess := DllCall("OpenProcess", "uint", 0x1000, "int", 1, "uint", targetPID)
-			throw Error(err := DllCall("GetLastError"))
+			throw Error(err := A_LastError)
 	; TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_QUERY
 	if !DllCall("OpenProcessToken", "ptr", hProcess, "uint", 0x0002 | 0x0001 | 0x0008, "ptr*", &hTokenTargetProcess := 0) {
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
 		throw Error(err)
 	}
 
 	if !DllCall("Advapi32\ImpersonateLoggedOnUser", "ptr", hTokenTargetProcess){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
 		throw Error(err)
 	}
 	DllCall("Advapi32\RevertToSelf")
@@ -47,7 +47,7 @@ StealToken(targetPID, exePath, cmd := "") {
 	; Duplicate Token now
 	; TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY , SecurityImpersonation(2), TokenPrimary(1)
 	if !DllCall("Advapi32\DuplicateTokenEx", "ptr", hTokenTargetProcess, "uint", 0x0080 | 0x0100 | 0x0008 | 0x0002 | 0x0001, "ptr", 0, "uint", 2, "uint", 1, "ptr*", &hTokenDuplicate := 0, "int"){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess)
 		throw Error(err)
 	}
 
@@ -59,7 +59,7 @@ StealToken(targetPID, exePath, cmd := "") {
 
 	; Create process with duplicate token
 	if !DllCall("Advapi32\CreateProcessWithTokenW", "ptr", hTokenDuplicate, "uint", 0, "ptr", StrPtr(exePath), "ptr", cmd ? StrPtr(A_Space cmd) : 0, "uint", 0x00000010, "ptr", 0, "ptr", 0, "ptr", pStartInfo, "ptr", pProcessInfo){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess), DllCall("CloseHandle", "ptr", hTokenDuplicate)
+		err := A_LastError, DllCall("CloseHandle", "ptr", hProcess), DllCall("CloseHandle", "ptr", hTokenTargetProcess), DllCall("CloseHandle", "ptr", hTokenDuplicate)
 		throw Error(err)
 	}
 	; Close all handles
@@ -97,10 +97,10 @@ FindProcess(exeName){
 	pProcessInfo := Buffer(304), NumPut("uint", pProcessInfo.Size, pProcessInfo, 0)
 	; CreateToolhelp32Snapshot https://docs.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-createtoolhelp32snapshot
 	if -1 = processSnapShot := DllCall("CreateToolhelp32Snapshot", "uint", 0x2, "uint", 0, "ptr")
-		throw Error(DllCall("GetLastError"))
+		throw Error(A_LastError)
 	; Process32First Process32Next https://docs.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-process32first
 	if (!DllCall("Process32First", "ptr", processSnapShot, "ptr", pProcessInfo.Ptr, "int")){
-		err := DllCall("GetLastError"), DllCall("CloseHandle", "ptr", processSnapShot)
+		err := A_LastError, DllCall("CloseHandle", "ptr", processSnapShot)
 		throw Error(err)
 	}
 	loop {
