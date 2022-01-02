@@ -76,7 +76,7 @@ FindProcess(exeName){
 	}
 	loop {
 		; PROCESSENTRY32 structure https://docs.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-processentry32
-		if exeName = found := StrGet(pProcessInfo.Ptr + 44, "utf-8"){
+		if exeName = found := StrGet(pProcessInfo.Ptr + 44, "CP936"){
 			DllCall("CloseHandle", "ptr", processSnapShot)
 			return NumGet(pProcessInfo, 8, "uint")
 		}
