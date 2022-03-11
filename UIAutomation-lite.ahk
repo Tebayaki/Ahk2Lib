@@ -1,4 +1,3 @@
-#Include <COM>
 ; Remove some functions that rarely used.
 ; IDs: https://docs.microsoft.com/en-us/windows/win32/winauto/uiauto-entry-propids
 class UIA {
@@ -422,13 +421,79 @@ class NativeArray {
 	__Enum(*) => (&item) => (A_Index <= this.Length ? (item := this[A_Index - 1], true) : false)
 }
 
+class Interface {
+	__New(ptr) {
+		if !this.Ptr := ptr
+			throw Error("Null pointer Exception", -3)
+	}
+	__Delete() => this.Release()
+	AddRef() => ObjAddRef(this.Ptr)
+	Release() => this.Ptr ? ObjRelease(this.Ptr) : 0
+}
+
+class Variant {
+	static TypeMap := [, "short", "int", "float", "double", , , "ptr", "ptr", "int", "int", "ptr", "ptr", , , "char", "uchar", "ushort", "uint", "int64", "uint64"]
+	__New(vt := unset, val := unset) {
+		this.Buffer := Buffer(24, 0)
+		this.Ptr := this.Buffer.Ptr
+		if !IsSet(vt)
+			return
+		NumPut("ushort", vt, this.Buffer)
+		switch vt {
+			case 8: vt := "ptr", val := DllCall("OleAut32\SysAllocString", "str", val, "ptr")
+			case 11: vt := "int", val := val ? -1 : 0
+			default:
+				if vt & 0x2000 {
+					vt := vt & 0x00ff
+					this.SafeArray := ComObjArray(vt, val.Length)
+					ComObjFlags(this.SafeArray, -1)
+					for k, v in val
+						this.SafeArray[k - 1] := ComValue(vt, v)
+					vt := "ptr", val := this.SafeArray.Ptr
+				} else {
+					vt := Variant.TypeMap[vt]
+				}
+		}
+		NumPut(vt, val, this.Buffer, 8)
+	}
+	__Delete() => DllCall("OleAut32\VariantClear", "ptr", this)
+	__Item {
+		get {
+			switch vt := this.VarType {
+				case 0: return
+				case 8: return (arr := NumGet(this, 8, "ptr")) ? StrGet(arr) : ""
+				case 9, 13: return (ObjAddRef(arr := NumGet(this, 8, "ptr")), arr)
+				default:
+					if vt & 0x2000
+						return this.HasOwnProp("SafeArray") ? this.SafeArray : (ComObjFlags(sa := ComValue(vt, NumGet(this, 8, "ptr")), -1), sa.Clone())
+					return NumGet(this, 8, Variant.TypeMap[vt])
+			}
+		}
+	}
+	Size := 24
+	VarType => NumGet(this, "ushort")
+	class P extends Variant {
+		__New(ptr) {
+			if !ptr
+				throw Error("Null Pointer Exception")
+			this.Ptr := ptr
+		}
+	}
+}
+
+BSTR2STR(bstr) => (bstr ? (str := StrGet(bstr), DllCall("OleAut32\SysFreeString", "ptr", bstr), str) : "")
+
+CLSIDFromString(str) => (DllCall("ole32\CLSIDFromString", "str", str, "ptr", pClsid := Buffer(16), "HRESULT"), pClsid)
+
+StringFromCLSID(clsid) => (DllCall('ole32\StringFromGUID2', "ptr", clsid, "wstr", str := "{00000000-0000-0000-0000-000000000000}", "int", 39), str)
+
 /*
  * HandleAutomationEvent(this, sender, event_id)
  * HandleFocusChangedEvent(this, sender)
  * HandlePropertyChangedEvent(this, sender, property_id, new_value)
  * HandleStructureChangedEvent(this, sender, change_type, runtime_id)
  */
-class EventHandler {
+ class EventHandler {
 	__New(fn, iid) {
 		this.Callback := CallbackCreate(fn, "F")
 		this.QueryInterfaceCallBack := CallbackCreate(this.__QueryInterface.Bind(, , , iid), "F", 3)
