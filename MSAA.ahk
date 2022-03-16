@@ -5,7 +5,9 @@ class MSAA {
 	static AccessibleObjectFromEvent(hwnd, objid, childid, &child) => (DllCall("Oleacc\AccessibleObjectFromEvent", "ptr", hwnd, "uint", objid, "uint", childid, "ptr*", &pacc := 0, "ptr", child := Buffer(24), "HRESULT"), child := NumGet(child, 8, "int"), IAccessible(ComObjFromPtr(pacc)))
 
 	static AccessibleChildren(acc) {
-		DllCall("Oleacc\AccessibleChildren", "ptr", acc, "int", 0, "int", len := acc.ChildCount, "ptr", children_var := Buffer(24 * len), "int*", 0, "HRESULT")
+		if !len := acc.ChildCount
+			return
+		DllCall("Oleacc\AccessibleChildren", "ptr", acc, "int", 0, "int", len, "ptr", children_var := Buffer(24 * len), "int*", 0, "HRESULT")
 		arr := []
 		loop len {
 			offset := (A_Index - 1) * 24
@@ -23,9 +25,13 @@ class MSAA {
 }
 
 class IAccessible {
-	__New(co) => this.Ptr := ComObjValue(this.Co := co)
+	__New(co){
+		if !co
+			throw Error("invalid Object")
+		this.Ptr := ComObjValue(this.Co := co)
+	}
 
-	Parent => this.Co.accParent()
+	Parent => IAccessible(this.Co.accParent())
 
 	ChildCount => this.Co.accChildCount()
 
@@ -75,3 +81,5 @@ class IAccessible {
 		return ele
 	}
 }
+
+CLSIDFromString(str) => (DllCall("ole32\CLSIDFromString", "str", str, "ptr", pClsid := Buffer(16), "HRESULT"), pClsid)
