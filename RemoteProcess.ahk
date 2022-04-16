@@ -1,20 +1,42 @@
 ﻿#Include <ToolHelp>
 
 ; MEMORY_TASKBAR_WIDTH := ["Explorer.exe", 0x328350, 0xA0]
-; pm := ProcessMemory("explorer.exe")
+; pm := RemoteProcess("explorer.exe")
 ; ptr := pm.TracePointer(MEMORY_TASKBAR_WIDTH*)
 ; MsgBox pm.ReadMemory(ptr, "int")
 
-class ProcessMemory {
+class RemoteProcess {
 	static DataSize := Map("char", 1, "uchar", 1, "short", 2, "ushort", 2, "int", 4, "uint", 4, "ptr", 8, "uptr", 8, "int64", 8, "uint64", 8, "folat", 4, "double", 8)
 
 	__New(process_var) {
 		pid := process_var is String ? ToolHelp.FindProcess(process_var).ProcessId : process_var
-		if !this.Ptr := DllCall("OpenProcess", "uint", 0x1f0fff, "int", false, "ptr", this.ProcessId := pid, "ptr")
-			throw OSError(A_LastError)
+		if !this.Ptr := DllCall("OpenProcess", "uint", 0x1f0fff, "int", false, "uint", this.ProcessId := pid, "ptr")
+			throw OSError()
 	}
 
 	__Delete() => this.Ptr && DllCall("CloseHandle", "ptr", this)
+
+	VirtualAlloc(dwSize, flAllocationType := 0x1000, flProtect := 0x40){
+		if !pRemoteBuf := DllCall("VirtualAllocEx", "ptr", this, "ptr", 0, "ptr", dwSize, "uint", flAllocationType, "uint", flProtect, "ptr")
+			throw OSError()
+		return pRemoteBuf
+	}
+
+	VirtualFree(lpAddress, dwSize, dwFreeType := 0x4000){
+		if !DllCall("VirtualFreeEx", "ptr", this, "ptr", lpAddress, "uptr", dwSize, "uint", dwFreeType)
+			throw OSError()
+	}
+
+	VirtualProtect(lpAddress, dwSize, flNewProtect, &flOldProtect := 0){
+		if !DllCall("VirtualProtectEx", "ptr", this, "ptr", lpAddress, "uptr", dwSize, "uint", flNewProtect, "uint*", &flOldProtect := 0)
+			throw OSError()
+	}
+
+	CreateThread(lpStartAddress, lpParameter, dwCreationFlags := 0, &threadId := 0){
+		if !hThread := DllCall("CreateRemoteThread", "ptr", this, "ptr", 0, "uptr", 0, "ptr", lpStartAddress, "ptr", lpParameter, "uint", dwCreationFlags, "uint*", threadId := 0, "ptr")
+			throw OSError()
+		return handle := { ptr: hThread, __Delete: this => DllCall("CloseHandle", "ptr", this) }
+	}
 
 	/*
 	@example1 ReadMemory(0xffffff, "int") => Number
@@ -27,7 +49,7 @@ class ProcessMemory {
 			default:throw TypeError("Invalid parameter")
 		}
 		if !res
-			throw OSError(A_LastError, -1)
+			throw OSError()
 		return buf
 	}
 
@@ -44,7 +66,7 @@ class ProcessMemory {
 			default:throw TypeError("WriteMemory: Invalid type")
 		}
 		if !res
-			throw OSError(A_LastError, -1)
+			throw OSError()
 	}
 
 	/*
