@@ -1,6 +1,6 @@
-﻿x64 := "B800010000C20000"
-code := ShellCode(x64)
-MsgBox DllCall(code)
+﻿; x64 := "B800010000C20000"
+; code := ShellCode(x64)
+; MsgBox DllCall(code)
 
 ShellCode(hex){
 	if !DllCall("crypt32\CryptStringToBinary", "str", hex, "uint", 0, "uint", 4, "ptr", 0, "uint*", &bytes := 0, "ptr", 0, "ptr", 0)
