@@ -29,7 +29,7 @@ InjectLib(pid, filepath) {
 
 EjectLib(pid, filename) {
 	try {
-		mod_base := 0
+		mod_base := snapshot_handle := thread_handle := process_handle := 0
 		if !snapshot_handle := DllCall("CreateToolhelp32Snapshot", "uint", 0x18, "uint", pid, "ptr")
 			throw OSError()
 		mod_entry := Buffer(1080), NumPut("uint", mod_entry.Size, mod_entry)
